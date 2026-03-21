@@ -1,31 +1,36 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import pickle
+import joblib
 import os
 
-# Load files safely
+# ==========================
+# LOAD FILES (CORRECT WAY)
+# ==========================
 base_path = os.path.dirname(__file__)
 
-with open(os.path.join(base_path, "model.pkl"), "rb") as f:
-    model = pickle.load(f)
+model = joblib.load(os.path.join(base_path, "model.pkl"))
+scaler = joblib.load(os.path.join(base_path, "scaler.pkl"))
+columns = joblib.load(os.path.join(base_path, "columns.pkl"))
 
-with open(os.path.join(base_path, "scaler.pkl"), "rb") as f:
-    scaler = pickle.load(f)
-
-with open(os.path.join(base_path, "columns.pkl"), "rb") as f:
-    columns = pickle.load(f)
-
+# ==========================
+# UI
+# ==========================
 st.set_page_config(page_title="House Price Predictor")
 st.title("🏠 House Price Prediction")
 
-# Inputs
+# ==========================
+# INPUTS
+# ==========================
 GrLivArea = st.number_input("Living Area", value=1000)
 BedroomAbvGr = st.number_input("Bedrooms", value=3)
 FullBath = st.number_input("Bathrooms", value=2)
 YearBuilt = st.number_input("Year Built", value=2000)
 GarageCars = st.number_input("Garage Capacity", value=2)
 
+# ==========================
+# CREATE INPUT DATAFRAME
+# ==========================
 input_dict = {
     "GrLivArea": GrLivArea,
     "BedroomAbvGr": BedroomAbvGr,
@@ -36,14 +41,21 @@ input_dict = {
 
 input_df = pd.DataFrame([input_dict])
 
+# Fill missing columns
 for col in columns:
     if col not in input_df:
         input_df[col] = 0
 
+# Arrange columns correctly
 input_df = input_df[columns]
+
+# Scale
 input_scaled = scaler.transform(input_df)
 
+# ==========================
+# PREDICT
+# ==========================
 if st.button("Predict Price"):
     prediction = model.predict(input_scaled)
     price = np.exp(prediction[0])
-    st.success(f"💰 Price: ₹ {price:,.2f}")
+    st.success(f"💰 Predicted Price: ₹ {price:,.2f}")
