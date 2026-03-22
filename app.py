@@ -3,10 +3,6 @@ import pandas as pd
 import numpy as np
 import joblib
 import os
-import shap
-import matplotlib.pyplot as plt
-
-from sklearn.linear_model import Ridge, LinearRegression, Lasso
 
 # ==========================
 # LOAD FILES
@@ -50,7 +46,7 @@ for col in columns:
     if col not in input_df:
         input_df[col] = 0
 
-# Arrange order
+# Arrange columns
 input_df = input_df[columns]
 
 # Scale
@@ -67,24 +63,26 @@ if st.button("Predict Price"):
     st.success(f"💰 Predicted Price: ₹ {price:,.2f}")
 
     # ==========================
-    # SHAP EXPLANATION
+    # SHAP (SAFE MODE)
     # ==========================
     st.subheader("🔍 Why this prediction? (SHAP)")
 
     try:
-        # Detect model type
+        import shap
+        import matplotlib.pyplot as plt
+        from sklearn.linear_model import Ridge, LinearRegression, Lasso
+
+        # Select correct explainer
         if isinstance(model, (Ridge, LinearRegression, Lasso)):
             explainer = shap.LinearExplainer(model, input_scaled)
             shap_values = explainer(input_scaled)
-
         else:
             explainer = shap.TreeExplainer(model)
             shap_values = explainer(input_scaled)
 
-        # Plot SHAP waterfall
         fig, ax = plt.subplots()
         shap.plots.waterfall(shap_values[0], show=False)
         st.pyplot(fig)
 
-    except Exception as e:
-        st.error(f"SHAP error: {e}")
+    except Exception:
+        st.warning("⚠️ SHAP not available in cloud environment")
