@@ -3,9 +3,13 @@ import pandas as pd
 import numpy as np
 import joblib
 import os
+import shap
+import matplotlib.pyplot as plt
+
+from sklearn.linear_model import Ridge, LinearRegression, Lasso
 
 # ==========================
-# LOAD FILES (CORRECT WAY)
+# LOAD FILES
 # ==========================
 base_path = os.path.dirname(__file__)
 
@@ -17,7 +21,7 @@ columns = joblib.load(os.path.join(base_path, "columns.pkl"))
 # UI
 # ==========================
 st.set_page_config(page_title="House Price Predictor")
-st.title("🏠 House Price Prediction")
+st.title("🏠 House Price Prediction + Explainable AI")
 
 # ==========================
 # INPUTS
@@ -29,7 +33,7 @@ YearBuilt = st.number_input("Year Built", value=2000)
 GarageCars = st.number_input("Garage Capacity", value=2)
 
 # ==========================
-# CREATE INPUT DATAFRAME
+# CREATE INPUT DATA
 # ==========================
 input_dict = {
     "GrLivArea": GrLivArea,
@@ -41,21 +45,46 @@ input_dict = {
 
 input_df = pd.DataFrame([input_dict])
 
-# Fill missing columns
+# Add missing columns
 for col in columns:
     if col not in input_df:
         input_df[col] = 0
 
-# Arrange columns correctly
+# Arrange order
 input_df = input_df[columns]
 
 # Scale
 input_scaled = scaler.transform(input_df)
 
 # ==========================
-# PREDICT
+# PREDICTION
 # ==========================
 if st.button("Predict Price"):
+
     prediction = model.predict(input_scaled)
     price = np.exp(prediction[0])
+
     st.success(f"💰 Predicted Price: ₹ {price:,.2f}")
+
+    # ==========================
+    # SHAP EXPLANATION
+    # ==========================
+    st.subheader("🔍 Why this prediction? (SHAP)")
+
+    try:
+        # Detect model type
+        if isinstance(model, (Ridge, LinearRegression, Lasso)):
+            explainer = shap.LinearExplainer(model, input_scaled)
+            shap_values = explainer(input_scaled)
+
+        else:
+            explainer = shap.TreeExplainer(model)
+            shap_values = explainer(input_scaled)
+
+        # Plot SHAP waterfall
+        fig, ax = plt.subplots()
+        shap.plots.waterfall(shap_values[0], show=False)
+        st.pyplot(fig)
+
+    except Exception as e:
+        st.error(f"SHAP error: {e}")
